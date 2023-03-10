@@ -1,5 +1,5 @@
 <template>
-  <div class="chat-app" @click="handleBlur">
+  <div class="chat-app" @click.stop="handleBlur">
     <div class="title">Chat with AI</div>
     <div class="message-list">
       <div class="message" v-for="(message, index) in messages" :key="index">
