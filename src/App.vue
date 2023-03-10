@@ -1,5 +1,5 @@
 <template>
-  <div class="chat-app">
+  <div class="chat-app" @click="handleBlur">
     <div class="title">Chat with AI</div>
     <div class="message-list">
       <div class="message" v-for="(message, index) in messages" :key="index">
@@ -7,11 +7,17 @@
           {{ message.sender }}
         </div>
         <div class="message-text">{{ message.text }}</div>
-        <div class="message-tokens" v-if="message.tokens">本次提问消耗tokens:{{ message.tokens }}</div>
+        <div class="message-tokens" v-if="message.tokens">
+          本次提问消耗tokens:{{ message.tokens }}
+        </div>
       </div>
     </div>
     <div class="input-container">
-      <input v-model="inputMessage" placeholder="Type a message..." />
+      <input
+        ref="inputRef"
+        v-model="inputMessage"
+        placeholder="Type a message..."
+      />
       <button @click="sendMessage">Send</button>
     </div>
   </div>
@@ -20,6 +26,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import axios from "axios";
+
+const inputRef = ref<any>(null);
 
 type Message = {
   sender: string;
@@ -73,7 +81,7 @@ const sendMessage = async () => {
       const responseMessage = {
         sender: "ChatBot",
         text: response.data.choices[0].message.content,
-        tokens: response.data.usage.total_tokens
+        tokens: response.data.usage.total_tokens,
       };
 
       messages.value.push(responseMessage);
@@ -87,6 +95,10 @@ const sendMessage = async () => {
 onMounted(() => {
   getApiKey();
 });
+
+function handleBlur() {
+  inputRef.value!.blur();
+}
 </script>
 
 <style scoped>
@@ -135,10 +147,10 @@ onMounted(() => {
   background-color: #f5f5f5;
 }
 
-.message-tokens{
+.message-tokens {
   margin-top: 6px;
   font-size: 12px;
-  color:rgba(0,0,0,0.3);
+  color: rgba(0, 0, 0, 0.3);
 }
 
 input {
