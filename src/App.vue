@@ -1,8 +1,6 @@
 <template>
   <div class="chat-app">
-    <div class="header">
-      <div class="title">Chat with AI</div>
-    </div>
+    <div class="title">Chat with AI</div>
     <div class="message-list">
       <div class="message" v-for="(message, index) in messages" :key="index">
         <div class="message-sender" :class="message.sender.toLowerCase()">
@@ -98,9 +96,10 @@ onMounted(() => {
   height: 100vh;
 }
 
-.header {
+.title {
   display: flex;
   align-items: center;
+  justify-content: center;
   background-color: #41b883;
   color: #fff;
   padding: 10px;
