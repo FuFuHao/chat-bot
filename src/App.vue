@@ -1,22 +1,19 @@
 <template>
-  <div class="chat-container">
-    <div class="chat-header">Chat App</div>
-    <div class="chat-messages">
-      <div v-for="message in messages" :key="message.id" class="message">
-        <div v-if="message.type === 'received'" class="received-message">
-          {{ message.content }}
+  <div class="chat-app">
+    <div class="header">
+      <div class="title">Chat with AI</div>
+    </div>
+    <div class="message-list">
+      <div class="message" v-for="(message, index) in messages" :key="index">
+        <div class="message-sender" :class="message.sender.toLowerCase()">
+          {{ message.sender }}
         </div>
-        <div v-else-if="message.type === 'sent'" class="sent-message">
-          {{ message.content }}
-        </div>
+        <div class="message-text">{{ message.text }}</div>
+        <div class="message-tokens" v-if="message.tokens">本次提问消耗tokens:{{ message.tokens }}</div>
       </div>
     </div>
-    <div class="chat-input">
-      <input
-        v-model="inputMessage"
-        type="text"
-        placeholder="输入你的信息…"
-      />
+    <div class="input-container">
+      <input v-model="inputMessage" placeholder="Type a message..." />
       <button @click="sendMessage">Send</button>
     </div>
   </div>
@@ -26,102 +23,92 @@
 import { ref, onMounted } from "vue";
 import axios from "axios";
 
-interface Message {
-  id: number;
-  type: string;
-  content: string;
-}
+type Message = {
+  sender: string;
+  text: string;
+  tokens?: string;
+};
 
-const API_ENDPOINT =
-  "https://api.openai.com/v1/engine/davinci-codex/completions";
-
-const apikey = localStorage.getItem("apikey") || "";
-if (!apikey) {
-  const inputKey = prompt("请输入您的OpenAI API密钥:");
-  if (inputKey) {
-    localStorage.setItem("apikey", inputKey);
-  }
-}
+const API_URL = "https://api.openai.com/v1/chat/completions";
 
 const messages = ref<Message[]>([]);
-const inputMessage = ref<string>("");
+const inputMessage = ref("");
+
+const getApiKey = (): string | null => {
+  const apiKey = localStorage.getItem("OPENAI_API_KEY");
+  if (!apiKey) {
+    const input = prompt("Please enter your OpenAI API key:");
+    if (input) {
+      localStorage.setItem("OPENAI_API_KEY", input);
+      return input;
+    } else {
+      return null;
+    }
+  }
+  return apiKey;
+};
 
 const sendMessage = async () => {
-  const apiKey = localStorage.getItem("apikey");
-  if (!apiKey) {
-    alert("OpenAI API key is not found!");
-    return;
-  }
-
-  const promptText = `User: ${inputMessage.value}`;
-  const requestBody = {
-    prompt: promptText,
-    max_tokens: 60,
-    n: 1,
-    stop: ["\n"],
+  const apiKey = getApiKey();
+  if (!apiKey) return;
+  const message = {
+    sender: "User",
+    text: inputMessage.value,
   };
-
-  try {
-    const response = await axios.post(API_ENDPOINT, requestBody, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-    });
-
-    const botMessage = response.data.choices[0].text.trim();
-    messages.value.push(
+  messages.value.push(message);
+  axios
+    .post(
+      API_URL,
       {
-        id: Date.now(),
-        type: "sent",
-        content: inputMessage.value,
+        messages: [{ role: "user", content: inputMessage.value }],
+        model: "gpt-3.5-turbo",
+        temperature: 0.7,
       },
       {
-        id: Date.now(),
-        type: "received",
-        content: botMessage,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
       }
-    );
-    inputMessage.value = "";
-  } catch (error) {
-    console.error(error);
-  }
+    )
+    .then((response) => {
+      const responseMessage = {
+        sender: "ChatBot",
+        text: response.data.choices[0].message.content,
+        tokens: response.data.usage.total_tokens
+      };
+
+      messages.value.push(responseMessage);
+    })
+    .catch((error) => {
+      console.log(error);
+    });
+  inputMessage.value = "";
 };
 
 onMounted(() => {
-  const welcomeMessage = "你好，我是你的聊天机器人!今天我能为您效劳吗?";
-  messages.value.push({
-    id: Date.now(),
-    type: "received",
-    content: welcomeMessage,
-  });
+  getApiKey();
 });
 </script>
 
 <style scoped>
-.chat-container {
-  width: 400px;
-  height: 600px;
-  margin: 0 auto;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  overflow: hidden;
+.chat-app {
   display: flex;
   flex-direction: column;
+  height: 100vh;
 }
 
-.chat-header {
+.header {
+  display: flex;
+  align-items: center;
   background-color: #41b883;
   color: #fff;
-  font-size: 24px;
-  font-weight: bold;
-  text-align: center;
   padding: 10px;
 }
 
-.chat-messages {
+.message-list {
   flex: 1;
-  overflow-y: scroll;
+  overflow: auto;
   padding: 10px;
 }
 
@@ -129,41 +116,46 @@ onMounted(() => {
   margin-bottom: 10px;
 }
 
-.received-message {
-  background-color: #eee;
-  padding: 5px;
-  border-radius: 5px;
-  text-align: left;
+.message-sender {
+  font-weight: bold;
+  margin-bottom: 5px;
 }
 
-.sent-message {
-  background-color: #fff;
-  padding: 5px;
-  border-radius: 5px;
-  text-align: right;
+.user {
+  color: #41b883;
 }
 
-.chat-input {
+.chatbot {
+  color: #2c3e50;
+}
+
+.input-container {
   display: flex;
   align-items: center;
   padding: 10px;
-  background-color: #f1f1f1;
+  background-color: #f5f5f5;
 }
 
-.chat-input input {
+.message-tokens{
+  margin-top: 6px;
+  font-size: 12px;
+  color:rgba(0,0,0,0.3);
+}
+
+input {
   flex: 1;
-  padding: 5px;
-  border: none;
+  padding: 10px;
   border-radius: 5px;
+  border: none;
   margin-right: 10px;
 }
 
-.chat-input button {
-  padding: 5px 10px;
-  border: none;
-  border-radius: 5px;
+button {
   background-color: #41b883;
   color: #fff;
+  border: none;
+  padding: 10px;
+  border-radius: 5px;
   cursor: pointer;
 }
 </style>
